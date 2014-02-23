@@ -1,0 +1,30 @@
+apply plugin: "java"
+
+sourceCompatibility = 1.6
+
+dependencies {
+    compile "com.badlogicgames.gdx:gdx:$gdxVersion"
+}
+
+sourceSets.main.java.srcDirs = [ "src/" ]
+
+eclipse.project {
+    name = appName + "-core"
+}
+
+import com.badlogic.gdx.tools.imagepacker.TexturePacker2
+import com.badlogic.gdx.tools.imagepacker.TexturePacker2.Settings
+task texturePacker << {
+  if (project.ext.has('texturePacker')) {
+    logger.info "Calling TexturePacker: "+texturePacker
+    Settings settings = new Settings();
+    settings.maxWidth = 1024;
+    settings.maxHeight = 1024;
+    settings.paddingX = 0;
+    settings.paddingY = 0;
+    settings.stripWhitespaceX = true;
+    settings.stripWhitespaceY = true;
+
+    TexturePacker2.process(settings, texturePacker[0], texturePacker[1], texturePacker[2]);
+  }
+}
