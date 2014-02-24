@@ -23,7 +23,7 @@ allprojects {
     // and TexturePacker will be invoked automagically whenever the target
     // "texurePacker" is invoked, e.g. "./gradlew texturePacker desktop:run"
 
-    ext.texturePacker = ['raw', 'android/assets/packed', 'dunwatch']
+    ext.texturePacker = [rootDir.toString() + '/raw', rootDir.toString() + '/android/assets/packed', 'dunwatch']
 
     repositories {
         mavenCentral()
