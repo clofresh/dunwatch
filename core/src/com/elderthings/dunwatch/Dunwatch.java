@@ -1,6 +1,7 @@
 package com.elderthings.dunwatch;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
@@ -22,7 +23,6 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     private ArrayList<Array<Sprite>> tentacles;
     private ArrayList<Array<AtlasRegion>> tentacleRegions;
     private ArrayList<Integer> tentacleStates;
-    private int index;
 
     public static final int TOP_RIGHT = 94;
     public static final int BOTTOM_RIGHT = 95;
@@ -74,7 +74,7 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
                     Gdx.app.postRunnable(new Runnable() {
                         @Override
                         public void run() {
-                            index++;
+                            updateTentacles();
                         }
                     });
                 }
@@ -87,19 +87,32 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         batch.dispose();
     }
 
-    @Override
-    public void render() {
-        update(Gdx.graphics.getDeltaTime());
-        draw();
-    }
-
-    private void update(float dt) {
+    private void updateTentacles() {
+        Random generator = new Random();
+        int choice, val, newVal;
+        boolean changed = false;
         for (int i = 0; i < NUM_TENTACLES; i++) {
-            tentacleStates.set(i, index % 3);
+            val = tentacleStates.get(i);
+            if (val == 0) {
+                choice = generator.nextInt(2);
+            } else if (val == 2) {
+                choice = generator.nextInt(2) - 1;
+            } else {
+                choice = generator.nextInt(3) - 1;
+            }
+            newVal = val + choice;
+            if (newVal != val) {
+                tentacleStates.set(i, newVal);
+                changed = true;
+            }
+        }
+        if (changed) {
+            Gdx.graphics.requestRendering();
         }
     }
 
-    private void draw() {
+    @Override
+    public void render() {
         Gdx.gl.glClearColor(1, 1, 1, 1);
         Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
 
@@ -145,12 +158,10 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         case BOTTOM_RIGHT:
         case Keys.RIGHT:
             handled = true;
-            index += 1;
             break;
         case TOP_LEFT:
         case Keys.LEFT:
             handled = true;
-            index -= 1;
             break;
         case TOP_RIGHT:
         case Keys.UP:
@@ -158,7 +169,7 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
             break;
         }
         if (handled) {
-            Gdx.graphics.requestRendering();
+            updateTentacles();
         }
         return handled;
     }
