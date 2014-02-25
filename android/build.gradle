@@ -1,6 +1,10 @@
 android {
-    buildToolsVersion "17.0"
-    compileSdkVersion 17
+    buildToolsVersion "19.0"
+    compileSdkVersion 19
+    defaultConfig {
+        minSdkVersion 7
+        targetSdkVersion 19
+    }
     sourceSets {
         main {
             manifest.srcFile 'AndroidManifest.xml'
@@ -25,7 +29,7 @@ tasks.withType(com.android.build.gradle.tasks.PackageApplication) { pkgTask ->
 // called every time gradle gets executed, takes the native dependencies of
 // the natives configuration, and extracts them to the proper libs/ folders
 // so they get packed with the APK.
-task copyAndroidNatives() { 
+task copyAndroidNatives() {
     file("libs/armeabi/").mkdirs();
     file("libs/armeabi-v7a/").mkdirs();
     file("libs/x86/").mkdirs();
@@ -50,9 +54,7 @@ eclipse {
     // need to specify Java source sets explicitely, SpringSource Gradle Eclipse plugin
     // ignores any nodes added in classpath.file.withXml
     sourceSets {
-        main {
-            java.srcDirs "src", 'gen'
-        }
+        main { java.srcDirs "src", 'gen' }
     }
 
     jdt {
@@ -61,8 +63,8 @@ eclipse {
     }
 
     classpath {
-        plusConfigurations += project.configurations.compile        
-        containers 'com.android.ide.eclipse.adt.ANDROID_FRAMEWORK', 'com.android.ide.eclipse.adt.LIBRARIES'       
+        plusConfigurations += project.configurations.compile
+        containers 'com.android.ide.eclipse.adt.ANDROID_FRAMEWORK', 'com.android.ide.eclipse.adt.LIBRARIES'
     }
 
     project {
@@ -80,7 +82,9 @@ eclipse {
 idea {
     module {
         sourceDirs += file("src");
-        scopes = [ COMPILE: [plus:[project.configurations.compile]]]        
+        scopes = [ COMPILE: [plus:[
+                    project.configurations.compile
+                ]]]
 
         iml {
             withXml {
