@@ -23,6 +23,10 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     private ArrayList<Array<Sprite>> tentacles;
     private ArrayList<Array<AtlasRegion>> tentacleRegions;
     private ArrayList<Integer> tentacleStates;
+    private ArrayList<Array<Sprite>> pigSprites;
+    private ArrayList<Array<AtlasRegion>> pigRegions;
+    private int pigDir;
+    private int pigLocation;
 
     public static final int TOP_RIGHT = 94;
     public static final int BOTTOM_RIGHT = 95;
@@ -30,7 +34,10 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     public static final int BOTTOM_LEFT = 93;
 
     public static final int NUM_TENTACLES = 8;
+    public static final int NUM_LOCATIONS = 10;
     public static final int CHANGES_PER_RENDER = 2;
+    public static final int PIG_LEFT = 0;
+    public static final int PIG_RIGHT = 1;
 
     @Override
     public void create() {
@@ -60,6 +67,17 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
             tentacleRegions.add(atlas.findRegions(name));
             tentacleStates.add(0);
         }
+
+        // Init the pig
+        pigSprites = new ArrayList<Array<Sprite>>();
+        pigRegions = new ArrayList<Array<AtlasRegion>>();
+        pigSprites.add(atlas.createSprites("cthulhu/pig_bw/pb"));
+        pigRegions.add(atlas.findRegions("cthulhu/pig_bw/pb"));
+        pigSprites.add(atlas.createSprites("cthulhu/pig_fw/pf"));
+        pigRegions.add(atlas.findRegions("cthulhu/pig_fw/pf"));
+        pigDir = PIG_RIGHT;
+        pigLocation = 0;
+
         Gdx.input.setInputProcessor(this);
         Gdx.graphics.requestRendering();
         new Thread(new Runnable() {
@@ -88,6 +106,21 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         batch.dispose();
     }
 
+    private void updatePig(int direction) {
+        if (direction == PIG_LEFT) {
+            if (pigLocation > 0) {
+                pigLocation--;
+            }
+            pigDir = direction;
+        } else if (direction == PIG_RIGHT) {
+            if (pigLocation < NUM_LOCATIONS - 1) {
+                pigLocation++;
+            }
+            pigDir = direction;
+        }
+        Gdx.graphics.requestRendering();
+    }
+
     private void updateTentacles() {
         Random generator = new Random();
         int choice, val, newVal;
@@ -106,7 +139,7 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
             newVal = val + choice;
             if (newVal != val) {
                 tentacleStates.set(j, newVal % 3);
-                changed ++;
+                changed++;
             }
         }
         if (changed > 0) {
@@ -134,6 +167,12 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
             batch.draw(currentFrame, x, y);
         }
         batch.draw(body, bodyRegion.offsetX, bodyRegion.offsetY);
+
+        // draw the pig
+        currentFrame = pigSprites.get(pigDir).get(pigLocation);
+        currentRegion = pigRegions.get(pigDir).get(pigLocation);
+        batch.draw(currentFrame, currentRegion.offsetX, currentRegion.offsetY);
+
         batch.end();
     }
 
@@ -155,24 +194,17 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         boolean handled = false;
         switch (keycode) {
         case BOTTOM_LEFT:
-        case Keys.DOWN:
-            handled = true;
-            break;
         case BOTTOM_RIGHT:
         case Keys.RIGHT:
+            updatePig(PIG_RIGHT);
             handled = true;
             break;
         case TOP_LEFT:
-        case Keys.LEFT:
-            handled = true;
-            break;
         case TOP_RIGHT:
-        case Keys.UP:
+        case Keys.LEFT:
+            updatePig(PIG_LEFT);
             handled = true;
             break;
-        }
-        if (handled) {
-            updateTentacles();
         }
         return handled;
     }
