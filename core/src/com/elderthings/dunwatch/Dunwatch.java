@@ -30,6 +30,7 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     public static final int BOTTOM_LEFT = 93;
 
     public static final int NUM_TENTACLES = 8;
+    public static final int CHANGES_PER_RENDER = 2;
 
     @Override
     public void create() {
@@ -66,7 +67,7 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
             public void run() {
                 while (true) {
                     try {
-                        Thread.sleep(1000);
+                        Thread.sleep(750);
                     } catch (InterruptedException e) {
                         // TODO Auto-generated catch block
                         e.printStackTrace();
@@ -90,9 +91,11 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     private void updateTentacles() {
         Random generator = new Random();
         int choice, val, newVal;
-        boolean changed = false;
-        for (int i = 0; i < NUM_TENTACLES; i++) {
-            val = tentacleStates.get(i);
+        int changed = 0;
+        int j;
+        for (int i = 0; i < CHANGES_PER_RENDER; i++) {
+            j = generator.nextInt(NUM_TENTACLES);
+            val = tentacleStates.get(j);
             if (val == 0) {
                 choice = generator.nextInt(2);
             } else if (val == 2) {
@@ -102,11 +105,11 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
             }
             newVal = val + choice;
             if (newVal != val) {
-                tentacleStates.set(i, newVal);
-                changed = true;
+                tentacleStates.set(j, newVal % 3);
+                changed ++;
             }
         }
-        if (changed) {
+        if (changed > 0) {
             Gdx.graphics.requestRendering();
         }
     }
