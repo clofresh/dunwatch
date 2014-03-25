@@ -24,10 +24,15 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     private ArrayList<Array<Sprite>> tentacles;
     private ArrayList<Array<AtlasRegion>> tentacleRegions;
     private ArrayList<Integer> tentacleStates;
+    private float tentacleTimer;
+
     private ArrayList<Array<Sprite>> pigSprites;
     private ArrayList<Array<AtlasRegion>> pigRegions;
     private Integer pigDir;
     private Integer pigLocation;
+    private float pigMoveTimer;
+    private float pigHitTimer;
+    private Integer newDirection = -1;
     private HashMap<Integer, Integer> pigToTentacle;
 
     public static final int TOP_RIGHT = 94;
@@ -39,14 +44,15 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     public static final int NUM_LOCATIONS = 10;
     public static final int NUM_TENTACLE_STATES = 3;
     public static final int CHANGES_PER_RENDER = 2;
+    public static final float TENTACLE_DELAY = 0.5f;
     public static final int PIG_LEFT = 0;
     public static final int PIG_RIGHT = 1;
+    public static final float PIG_MOVE_DELAY = 0.25f;
+    public static final float PIG_HIT_DELAY = 0.5f;
 
     @Override
     public void create() {
         String name;
-
-        Gdx.graphics.setContinuousRendering(false);
 
         camera = new OrthographicCamera();
         camera.setToOrtho(false);
@@ -70,6 +76,7 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
             tentacleRegions.add(atlas.findRegions(name));
             tentacleStates.add(0);
         }
+        tentacleTimer = 0.0f;
 
         // Init the pig
         pigSprites = new ArrayList<Array<Sprite>>();
@@ -91,28 +98,11 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         pigToTentacle.put(7, null);
         pigToTentacle.put(8, 6);
         pigToTentacle.put(9, 7);
+        pigMoveTimer = 0.0f;
+        pigHitTimer = 0.0f;
 
         Gdx.input.setInputProcessor(this);
         Gdx.graphics.requestRendering();
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (true) {
-                    try {
-                        Thread.sleep(750);
-                    } catch (InterruptedException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                    Gdx.app.postRunnable(new Runnable() {
-                        @Override
-                        public void run() {
-                            updateTentacles();
-                        }
-                    });
-                }
-            }
-        }).start();
     }
 
     @Override
@@ -120,69 +110,79 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         batch.dispose();
     }
 
-    private void updatePig(int direction) {
-        boolean changed = false;
-        if (direction == PIG_LEFT) {
-            if (pigLocation > 0) {
-                pigLocation--;
-                changed = true;
+    private void movePig(Integer direction) {
+        newDirection = direction;
+    }
+
+    private void updatePig(float deltaTime) {
+        pigMoveTimer += deltaTime;
+        if (pigMoveTimer > PIG_MOVE_DELAY) {
+            if (newDirection == PIG_LEFT) {
+                if (pigLocation > 0) {
+                    pigLocation--;
+                }
+                pigDir = newDirection;
+                newDirection = -1;
+            } else if (newDirection == PIG_RIGHT) {
+                if (pigLocation < NUM_LOCATIONS - 1) {
+                    pigLocation++;
+                }
+                pigDir = newDirection;
+                newDirection = -1;
             }
-            pigDir = direction;
-        } else if (direction == PIG_RIGHT) {
-            if (pigLocation < NUM_LOCATIONS - 1) {
-                pigLocation++;
-                changed = true;
-            }
-            pigDir = direction;
-        }
-        if (changed) {
-            checkCollisions();
-            Gdx.graphics.requestRendering();
+            pigMoveTimer = 0.0f;
         }
     }
 
-    private void updateTentacles() {
-        Random generator = new Random();
-        int choice, val, newVal;
-        int changed = 0;
-        int j;
-        for (int i = 0; i < CHANGES_PER_RENDER; i++) {
-            j = generator.nextInt(NUM_TENTACLES);
-            val = tentacleStates.get(j);
-            if (val == 0) {
-                choice = generator.nextInt(2);
-            } else if (val == 2) {
-                choice = generator.nextInt(2) - 1;
-            } else {
-                choice = generator.nextInt(3) - 1;
+    private void updateTentacles(float deltaTime) {
+        tentacleTimer += deltaTime;
+        if (tentacleTimer > TENTACLE_DELAY) {
+            Random generator = new Random();
+            int choice, val, newVal;
+            int j;
+            for (int i = 0; i < CHANGES_PER_RENDER; i++) {
+                j = generator.nextInt(NUM_TENTACLES);
+                val = tentacleStates.get(j);
+                if (val == 0) {
+                    choice = generator.nextInt(NUM_TENTACLE_STATES - 1);
+                } else if (val == 2) {
+                    choice = generator.nextInt(NUM_TENTACLE_STATES - 1) - 1;
+                } else {
+                    choice = generator.nextInt(NUM_TENTACLE_STATES) - 1;
+                }
+                newVal = val + choice;
+                if (newVal != val) {
+                    tentacleStates.set(j, newVal % NUM_TENTACLE_STATES);
+                }
             }
-            newVal = val + choice;
-            if (newVal != val) {
-                tentacleStates.set(j, newVal % NUM_TENTACLE_STATES);
-                changed++;
-            }
-        }
-        if (changed > 0) {
-            checkCollisions();
-            Gdx.graphics.requestRendering();
+            tentacleTimer = 0.0f;
         }
     }
 
-    private void checkCollisions() {
-        Integer tentaclePos = pigToTentacle.get(pigLocation);
-        if (tentaclePos != null) {
-            Integer tentacleState = tentacleStates.get(tentaclePos);
-            if (tentacleState == NUM_TENTACLE_STATES - 1) {
-                System.out
-                        .println(String
-                                .format("Pig hit by tentacle at pigLocation %d, tentacleLocation %d",
-                                        pigLocation, tentaclePos));
+    private void checkCollisions(float deltaTime) {
+        pigHitTimer += deltaTime;
+        if (pigHitTimer > PIG_HIT_DELAY) {
+            Integer tentaclePos = pigToTentacle.get(pigLocation);
+            if (tentaclePos != null) {
+                Integer tentacleState = tentacleStates.get(tentaclePos);
+                if (tentacleState == NUM_TENTACLE_STATES - 1) {
+                    System.out
+                            .println(String
+                                    .format("Pig hit by tentacle at pigLocation %d, tentacleLocation %d",
+                                            pigLocation, tentaclePos));
+                }
             }
+            pigHitTimer = 0.0f;
         }
     }
 
     @Override
     public void render() {
+        float deltaTime = Gdx.graphics.getDeltaTime();
+        updatePig(deltaTime);
+        updateTentacles(deltaTime);
+        checkCollisions(deltaTime);
+
         Gdx.gl.glClearColor(1, 1, 1, 1);
         Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
 
@@ -230,13 +230,13 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         case BOTTOM_LEFT:
         case BOTTOM_RIGHT:
         case Keys.RIGHT:
-            updatePig(PIG_RIGHT);
+            movePig(PIG_RIGHT);
             handled = true;
             break;
         case TOP_LEFT:
         case TOP_RIGHT:
         case Keys.LEFT:
-            updatePig(PIG_LEFT);
+            movePig(PIG_LEFT);
             handled = true;
             break;
         }
