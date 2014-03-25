@@ -1,6 +1,7 @@
 package com.elderthings.dunwatch;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Random;
 
 import com.badlogic.gdx.ApplicationListener;
@@ -25,8 +26,9 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     private ArrayList<Integer> tentacleStates;
     private ArrayList<Array<Sprite>> pigSprites;
     private ArrayList<Array<AtlasRegion>> pigRegions;
-    private int pigDir;
-    private int pigLocation;
+    private Integer pigDir;
+    private Integer pigLocation;
+    private HashMap<Integer, Integer> pigToTentacle;
 
     public static final int TOP_RIGHT = 94;
     public static final int BOTTOM_RIGHT = 95;
@@ -35,6 +37,7 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
 
     public static final int NUM_TENTACLES = 8;
     public static final int NUM_LOCATIONS = 10;
+    public static final int NUM_TENTACLE_STATES = 3;
     public static final int CHANGES_PER_RENDER = 2;
     public static final int PIG_LEFT = 0;
     public static final int PIG_RIGHT = 1;
@@ -77,6 +80,17 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         pigRegions.add(atlas.findRegions("cthulhu/pig_fw/pf"));
         pigDir = PIG_RIGHT;
         pigLocation = 0;
+        pigToTentacle = new HashMap<Integer, Integer>();
+        pigToTentacle.put(0, 0);
+        pigToTentacle.put(1, 1);
+        pigToTentacle.put(2, null);
+        pigToTentacle.put(3, 2);
+        pigToTentacle.put(4, 3);
+        pigToTentacle.put(5, 4);
+        pigToTentacle.put(6, 5);
+        pigToTentacle.put(7, null);
+        pigToTentacle.put(8, 6);
+        pigToTentacle.put(9, 7);
 
         Gdx.input.setInputProcessor(this);
         Gdx.graphics.requestRendering();
@@ -107,18 +121,24 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     }
 
     private void updatePig(int direction) {
+        boolean changed = false;
         if (direction == PIG_LEFT) {
             if (pigLocation > 0) {
                 pigLocation--;
+                changed = true;
             }
             pigDir = direction;
         } else if (direction == PIG_RIGHT) {
             if (pigLocation < NUM_LOCATIONS - 1) {
                 pigLocation++;
+                changed = true;
             }
             pigDir = direction;
         }
-        Gdx.graphics.requestRendering();
+        if (changed) {
+            checkCollisions();
+            Gdx.graphics.requestRendering();
+        }
     }
 
     private void updateTentacles() {
@@ -138,12 +158,26 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
             }
             newVal = val + choice;
             if (newVal != val) {
-                tentacleStates.set(j, newVal % 3);
+                tentacleStates.set(j, newVal % NUM_TENTACLE_STATES);
                 changed++;
             }
         }
         if (changed > 0) {
+            checkCollisions();
             Gdx.graphics.requestRendering();
+        }
+    }
+
+    private void checkCollisions() {
+        Integer tentaclePos = pigToTentacle.get(pigLocation);
+        if (tentaclePos != null) {
+            Integer tentacleState = tentacleStates.get(tentaclePos);
+            if (tentacleState == NUM_TENTACLE_STATES - 1) {
+                System.out
+                        .println(String
+                                .format("Pig hit by tentacle at pigLocation %d, tentacleLocation %d",
+                                        pigLocation, tentaclePos));
+            }
         }
     }
 
