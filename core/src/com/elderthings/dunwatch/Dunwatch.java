@@ -161,18 +161,17 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
 
     private void checkCollisions(float deltaTime) {
         pigHitTimer += deltaTime;
-        if (pigHitTimer > PIG_HIT_DELAY) {
-            Integer tentaclePos = pigToTentacle.get(pigLocation);
-            if (tentaclePos != null) {
-                Integer tentacleState = tentacleStates.get(tentaclePos);
-                if (tentacleState == NUM_TENTACLE_STATES - 1) {
-                    System.out
-                            .println(String
-                                    .format("Pig hit by tentacle at pigLocation %d, tentacleLocation %d",
-                                            pigLocation, tentaclePos));
-                }
+        Integer tentaclePos = pigToTentacle.get(pigLocation);
+        if (tentaclePos != null) {
+            Integer tentacleState = tentacleStates.get(tentaclePos);
+            if (tentacleState == NUM_TENTACLE_STATES - 1
+                    && pigHitTimer > PIG_HIT_DELAY) {
+                System.out
+                        .println(String
+                                .format("Pig hit by tentacle at pigLocation %d, tentacleLocation %d",
+                                        pigLocation, tentaclePos));
+                pigHitTimer = 0.0f;
             }
-            pigHitTimer = 0.0f;
         }
     }
 
