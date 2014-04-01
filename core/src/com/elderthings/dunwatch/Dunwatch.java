@@ -47,7 +47,7 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     public static final float TENTACLE_DELAY = 0.5f;
     public static final int PIG_LEFT = 0;
     public static final int PIG_RIGHT = 1;
-    public static final float PIG_MOVE_DELAY = 0.25f;
+    public static final float PIG_MOVE_DELAY = 0.125f;
     public static final float PIG_HIT_DELAY = 0.5f;
 
     @Override
