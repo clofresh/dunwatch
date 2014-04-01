@@ -17,6 +17,7 @@ import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion;
 import com.badlogic.gdx.utils.Array;
 
 public class Dunwatch implements ApplicationListener, InputProcessor {
+    private Random generator;
     private OrthographicCamera camera;
     private SpriteBatch batch;
     private Sprite body;
@@ -34,6 +35,10 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     private float pigHitTimer;
     private Integer newDirection = -1;
     private HashMap<Integer, Integer> pigToTentacle;
+    private Integer fruitLocation;
+    private float fruitTimer;
+    private Array<Sprite> fruitSprites;
+    private Array<AtlasRegion> fruitRegions;
 
     public static final int TOP_RIGHT = 94;
     public static final int BOTTOM_RIGHT = 95;
@@ -49,11 +54,14 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     public static final int PIG_RIGHT = 1;
     public static final float PIG_MOVE_DELAY = 0.125f;
     public static final float PIG_HIT_DELAY = 0.5f;
+    public static final float FRUIT_SPAWN_DELAY = 1f;
+    public static final float FRUIT_DISAPPEAR_DELAY = 5.0f;
 
     @Override
     public void create() {
         String name;
 
+        generator = new Random();
         camera = new OrthographicCamera();
         camera.setToOrtho(false);
         batch = new SpriteBatch();
@@ -101,6 +109,10 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         pigMoveTimer = 0.0f;
         pigHitTimer = 0.0f;
 
+        // Init the fruit
+        fruitSprites = atlas.createSprites("cthulhu/pear/fp");
+        fruitRegions = atlas.findRegions("cthulhu/pear/fp");
+
         Gdx.input.setInputProcessor(this);
         Gdx.graphics.requestRendering();
     }
@@ -137,7 +149,6 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     private void updateTentacles(float deltaTime) {
         tentacleTimer += deltaTime;
         if (tentacleTimer > TENTACLE_DELAY) {
-            Random generator = new Random();
             int choice, val, newVal;
             int j;
             for (int i = 0; i < CHANGES_PER_RENDER; i++) {
@@ -159,20 +170,47 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         }
     }
 
+    private void updateFruit(float deltaTime) {
+        fruitTimer += deltaTime;
+        if (fruitLocation == null && fruitTimer > FRUIT_SPAWN_DELAY) {
+            fruitLocation = getFreeFruitLocation();
+            fruitTimer = 0;
+        } else if (fruitLocation != null && fruitTimer > FRUIT_DISAPPEAR_DELAY) {
+            fruitLocation = null;
+            fruitTimer = 0;
+        }
+    }
+
+    private Integer getFreeFruitLocation() {
+        return pigToTentacle.get(generator.nextInt(NUM_LOCATIONS));
+    }
+
     private void checkCollisions(float deltaTime) {
         pigHitTimer += deltaTime;
-        Integer tentaclePos = pigToTentacle.get(pigLocation);
-        if (tentaclePos != null) {
-            Integer tentacleState = tentacleStates.get(tentaclePos);
+        Integer pigPos = pigToTentacle.get(pigLocation);
+        Integer tentacleState;
+        if (pigPos != null) {
+            tentacleState = tentacleStates.get(pigPos);
             if (tentacleState == NUM_TENTACLE_STATES - 1
                     && pigHitTimer > PIG_HIT_DELAY) {
-                System.out
-                        .println(String
-                                .format("Pig hit by tentacle at pigLocation %d, tentacleLocation %d",
-                                        pigLocation, tentaclePos));
+                System.out.println(String.format("Pig hit by tentacle at %d",
+                        pigPos));
                 pigHitTimer = 0.0f;
             }
         }
+        if (fruitLocation != null) {
+            tentacleState = tentacleStates.get(fruitLocation);
+            if (fruitLocation == pigPos) {
+                System.out.println(String.format("Pig got fruit at %d",
+                        fruitLocation));
+                fruitLocation = null;
+            } else if (tentacleState == NUM_TENTACLE_STATES - 1) {
+                System.out.println(String.format("Tentacle got fruit at %d",
+                        fruitLocation));
+                fruitLocation = null;
+            }
+        }
+
     }
 
     @Override
@@ -180,6 +218,7 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         float deltaTime = Gdx.graphics.getDeltaTime();
         updatePig(deltaTime);
         updateTentacles(deltaTime);
+        updateFruit(deltaTime);
         checkCollisions(deltaTime);
 
         Gdx.gl.glClearColor(1, 1, 1, 1);
@@ -205,6 +244,14 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         currentFrame = pigSprites.get(pigDir).get(pigLocation);
         currentRegion = pigRegions.get(pigDir).get(pigLocation);
         batch.draw(currentFrame, currentRegion.offsetX, currentRegion.offsetY);
+
+        // draw the fruit
+        if (fruitLocation != null) {
+            currentFrame = fruitSprites.get(fruitLocation);
+            currentRegion = fruitRegions.get(fruitLocation);
+            batch.draw(currentFrame, currentRegion.offsetX,
+                    currentRegion.offsetY);
+        }
 
         batch.end();
     }
