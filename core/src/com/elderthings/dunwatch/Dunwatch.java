@@ -20,13 +20,17 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     private Random generator;
     private OrthographicCamera camera;
     private SpriteBatch batch;
+
+    // Tentacle state
     private Sprite body;
     private AtlasRegion bodyRegion;
     private ArrayList<Array<Sprite>> tentacles;
     private ArrayList<Array<AtlasRegion>> tentacleRegions;
     private ArrayList<Integer> tentacleStates;
-    private float tentacleTimer;
+    private double tentacleTimer;
+    private Integer tentacleLevel;
 
+    // Pig state
     private ArrayList<Array<Sprite>> pigSprites;
     private ArrayList<Array<AtlasRegion>> pigRegions;
     private Integer pigDir;
@@ -35,27 +39,41 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     private float pigHitTimer;
     private Integer newDirection = -1;
     private HashMap<Integer, Integer> pigToTentacle;
+    private Integer pigLife;
+
+    // Fruit state
     private Integer fruitLocation;
     private float fruitTimer;
     private Array<Sprite> fruitSprites;
     private Array<AtlasRegion> fruitRegions;
+    private Integer pigFruits;
+    private Integer tentacleFruits;
 
+    // Nook button constants
     public static final int TOP_RIGHT = 94;
     public static final int BOTTOM_RIGHT = 95;
     public static final int TOP_LEFT = 92;
     public static final int BOTTOM_LEFT = 93;
 
+    // Tentacle constants
     public static final int NUM_TENTACLES = 8;
     public static final int NUM_LOCATIONS = 10;
     public static final int NUM_TENTACLE_STATES = 3;
     public static final int CHANGES_PER_RENDER = 2;
-    public static final float TENTACLE_DELAY = 0.5f;
+    public static final double MAX_LEVELS_TIL_ZERO = 10;
+    public static final double TENTACLE_START_DELAY = 0.5;
+
+    // Pig constants
     public static final int PIG_LEFT = 0;
     public static final int PIG_RIGHT = 1;
     public static final float PIG_MOVE_DELAY = 0.125f;
     public static final float PIG_HIT_DELAY = 0.5f;
+    public static final int MAX_PIG_LIFE = 3;
+
+    // Fruit constants
     public static final float FRUIT_SPAWN_DELAY = 1f;
     public static final float FRUIT_DISAPPEAR_DELAY = 5.0f;
+    public static final int WINNING_THRESHOLD = 3;
 
     @Override
     public void create() {
@@ -82,9 +100,8 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
             name = "cthulhu/t_" + String.valueOf(i + 1) + "/t";
             tentacles.add(atlas.createSprites(name));
             tentacleRegions.add(atlas.findRegions(name));
-            tentacleStates.add(0);
+            tentacleStates.add(null);
         }
-        tentacleTimer = 0.0f;
 
         // Init the pig
         pigSprites = new ArrayList<Array<Sprite>>();
@@ -93,8 +110,6 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         pigRegions.add(atlas.findRegions("cthulhu/pig_bw/pb"));
         pigSprites.add(atlas.createSprites("cthulhu/pig_fw/pf"));
         pigRegions.add(atlas.findRegions("cthulhu/pig_fw/pf"));
-        pigDir = PIG_RIGHT;
-        pigLocation = 0;
         pigToTentacle = new HashMap<Integer, Integer>();
         pigToTentacle.put(0, 0);
         pigToTentacle.put(1, 1);
@@ -106,15 +121,33 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         pigToTentacle.put(7, null);
         pigToTentacle.put(8, 6);
         pigToTentacle.put(9, 7);
-        pigMoveTimer = 0.0f;
-        pigHitTimer = 0.0f;
 
         // Init the fruit
         fruitSprites = atlas.createSprites("cthulhu/pear/fp");
         fruitRegions = atlas.findRegions("cthulhu/pear/fp");
 
         Gdx.input.setInputProcessor(this);
-        Gdx.graphics.requestRendering();
+        reset();
+    }
+
+    private void reset() {
+        // Init the tentacles
+        for (int i = 0; i < NUM_TENTACLES; i++) {
+            tentacleStates.set(i, 0);
+        }
+        tentacleTimer = 0.0f;
+        tentacleLevel = 0;
+
+        // Init the pig
+        pigDir = PIG_RIGHT;
+        pigLocation = 0;
+        pigMoveTimer = 0.0f;
+        pigHitTimer = 0.0f;
+        pigLife = MAX_PIG_LIFE;
+
+        // Init the fruit
+        pigFruits = 0;
+        tentacleFruits = 0;
     }
 
     @Override
@@ -124,6 +157,15 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
 
     private void movePig(Integer direction) {
         newDirection = direction;
+    }
+
+    private double computeTentacleDelay() {
+        // The delay value is an inverted parabola whose peak is at y =
+        // TENTACLE_START_DELAY and intersects the x axis at
+        // x = MAX_LEVELS_TIL_ZERO, meaning that that point, there is no delay
+        return -TENTACLE_START_DELAY / MAX_LEVELS_TIL_ZERO
+                / MAX_LEVELS_TIL_ZERO * tentacleLevel * tentacleLevel
+                + TENTACLE_START_DELAY;
     }
 
     private void updatePig(float deltaTime) {
@@ -148,7 +190,7 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
 
     private void updateTentacles(float deltaTime) {
         tentacleTimer += deltaTime;
-        if (tentacleTimer > TENTACLE_DELAY) {
+        if (tentacleTimer > computeTentacleDelay()) {
             int choice, val, newVal;
             int j;
             for (int i = 0; i < CHANGES_PER_RENDER; i++) {
@@ -193,20 +235,26 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
             tentacleState = tentacleStates.get(pigPos);
             if (tentacleState == NUM_TENTACLE_STATES - 1
                     && pigHitTimer > PIG_HIT_DELAY) {
-                System.out.println(String.format("Pig hit by tentacle at %d",
-                        pigPos));
+                pigLife--;
+                System.out.println(String.format(
+                        "Pig hit by tentacle at %d. %d life left.", pigPos,
+                        pigLife));
                 pigHitTimer = 0.0f;
             }
         }
         if (fruitLocation != null) {
             tentacleState = tentacleStates.get(fruitLocation);
             if (fruitLocation == pigPos) {
-                System.out.println(String.format("Pig got fruit at %d",
-                        fruitLocation));
+                pigFruits++;
+                System.out.println(String.format(
+                        "Pig got fruit at %d. %d to %d.", fruitLocation,
+                        pigFruits, tentacleFruits));
                 fruitLocation = null;
             } else if (tentacleState == NUM_TENTACLE_STATES - 1) {
-                System.out.println(String.format("Tentacle got fruit at %d",
-                        fruitLocation));
+                tentacleFruits++;
+                System.out.println(String.format(
+                        "Tentacle got fruit at %d. %d to %d.", fruitLocation,
+                        tentacleFruits, pigFruits));
                 fruitLocation = null;
             }
         }
@@ -254,6 +302,32 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
         }
 
         batch.end();
+
+        // Check end conditions
+        if (pigLife <= 0) {
+            System.out.println(String.format("Dead! Pig: %d, Tentacles: %d",
+                    pigFruits, tentacleFruits));
+            reset();
+        } else if (tentacleFruits >= WINNING_THRESHOLD) {
+            tentacleLevel++;
+            System.out
+                    .println(String
+                            .format("Tentacles win, %d to %d. Raising level to %d (tentacle delay: %f)",
+                                    tentacleFruits, pigFruits, tentacleLevel,
+                                    computeTentacleDelay()));
+            tentacleFruits = 0;
+            pigFruits = 0;
+        } else if (pigFruits >= WINNING_THRESHOLD) {
+            tentacleLevel++;
+            System.out
+                    .println(String
+                            .format("Pig wins, %d to %d. Raising level to %d (tentacle delay: %f)",
+                                    pigFruits, tentacleFruits, tentacleLevel,
+                                    computeTentacleDelay()));
+            pigLife = MAX_PIG_LIFE;
+            tentacleFruits = 0;
+            pigFruits = 0;
+        }
     }
 
     @Override
