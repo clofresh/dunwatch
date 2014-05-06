@@ -10,6 +10,7 @@ import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.GL10;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
@@ -75,9 +76,14 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
     public static final float FRUIT_DISAPPEAR_DELAY = 5.0f;
     public static final int WINNING_THRESHOLD = 3;
 
+    // Font
+    private BitmapFont font;
+
     @Override
     public void create() {
         String name;
+
+        font = new BitmapFont(Gdx.files.internal("font.fnt"));
 
         generator = new Random();
         camera = new OrthographicCamera();
@@ -300,6 +306,9 @@ public class Dunwatch implements ApplicationListener, InputProcessor {
             batch.draw(currentFrame, currentRegion.offsetX,
                     currentRegion.offsetY);
         }
+        font.draw(batch, String.format(
+                "[ Life: %d ][ Score: %d-%d ][ Lvl: %d ]", pigLife, pigFruits,
+                tentacleFruits, tentacleLevel), 160, 35);
 
         batch.end();
 
